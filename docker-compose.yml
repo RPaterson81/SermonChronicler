@@ -1,0 +1,88 @@
+version: '3.8'
+
+# SermonChronicler - Docker Compose Configuration
+# Transform sermon transcripts into engaging study materials
+
+services:
+  backend:
+    image: ghcr.io/rpaterson81/sermonchronicler/backend:latest
+    container_name: sermonchronicler-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/sermonchronicler
+      - ALLOWED_ORIGINS=http://${SERVER_IP}:${FRONTEND_PORT:-3000},http://localhost:${FRONTEND_PORT:-3000}
+    volumes:
+      - backend_data:/app/data
+      - backend_uploads:/app/uploads
+      - backend_outputs:/app/outputs
+    networks:
+      - sermonchronicler
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ghcr.io/rpaterson81/sermonchronicler/frontend:latest
+    container_name: sermonchronicler-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    environment:
+      - API_URL=http://${SERVER_IP}:${BACKEND_PORT:-3001}/api
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - sermonchronicler
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: sermonchronicler-n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - WEBHOOK_URL=http://n8n:5678/
+      - N8N_METRICS=false
+      - N8N_DIAGNOSTICS_ENABLED=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - sermonchronicler
+
+networks:
+  sermonchronicler:
+    name: sermonchronicler
+    driver: bridge
+
+volumes:
+  backend_data:
+    name: sermonchronicler-data
+  backend_uploads:
+    name: sermonchronicler-uploads
+  backend_outputs:
+    name: sermonchronicler-outputs
+  n8n_data:
+    name: sermonchronicler-n8n
+
+# Quick Commands:
+# Start:   docker-compose up -d
+# Stop:    docker-compose down
+# Logs:    docker-compose logs -f
+# Update:  docker-compose pull && docker-compose up -d
+# Restart: docker-compose restart

@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Backend specific
+backend/data/*.json
+backend/data/sermons.json
+backend/uploads/*
+backend/outputs/*
+!backend/data/.gitkeep
+!backend/uploads/.gitkeep
+!backend/outputs/.gitkeep
+
+# Frontend specific
+frontend/.vite
+frontend/dist
+frontend/node_modules
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Docker (these are built, not stored)
+# docker-compose.override.yml (keep if you have local overrides)
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
