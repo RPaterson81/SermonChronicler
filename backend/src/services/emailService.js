@@ -1,8 +1,21 @@
-const nodemailer = require('nodemailer');
+let nodemailer;
+try {
+  nodemailer = require('nodemailer');
+	} catch (e) {
+		// Fallback for Alpine/module resolution issues
+		nodemailer = require('nodemailer/lib/nodemailer');
+	}
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
+    // Make transporter creation more defensive
+    if (!nodemailer || !nodemailer.createTransport) {
+      console.warn('Nodemailer not available - email service disabled');
+      this.transporter = null;
+      return;
+    }
+
+    this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'localhost',
       port: process.env.SMTP_PORT || 587,
       secure: process.env.SMTP_SECURE === 'true',
@@ -14,7 +27,11 @@ class EmailService {
   }
 
   async sendProcessingComplete(email, sermonData, downloadLinks) {
-    const mailOptions = {
+    if (!this.transporter) {
+      console.warn('Email service not configured, skipping email');
+      return;
+    }
+	const mailOptions = {
       from: process.env.SMTP_FROM || 'noreply@sermonchronicler.com',
       to: email,
       subject: `Study Materials Ready: ${sermonData.title}`,
