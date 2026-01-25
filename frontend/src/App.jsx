@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import UploadForm from './components/UploadForm';
 import SermonList from './components/SermonList';
+import Landing from './pages/Landing';
+import AdminDashboard from './pages/AdminDashboard';
 import { sermonApi } from './services/api';
 import './App.css';
 
-function App() {
+function LegacyApp() {
   const [sermons, setSermons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +16,6 @@ function App() {
   useEffect(() => {
     loadSermons();
     
-    // Poll for updates every 5 seconds when on history tab
     const interval = setInterval(() => {
       if (activeTab === 'history') {
         loadSermons(true);
@@ -124,6 +126,18 @@ function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/upload" element={<LegacyApp />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

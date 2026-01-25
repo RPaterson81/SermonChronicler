@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const sermonRoutes = require('./routes/sermons');
+const submissionRoutes = require('./routes/submissions');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -16,6 +17,7 @@ app.use('/outputs', express.static(path.join(__dirname, '../outputs')));
 
 // API Routes
 app.use('/api/sermons', sermonRoutes);
+app.use('/api/submissions', submissionRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
