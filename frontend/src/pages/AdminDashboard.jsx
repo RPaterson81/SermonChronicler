@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { submissionApi, subscriptionApi } from '../services/api';
+import { submissionApi, subscriptionApi } from '../services/submission-api';
 import PipelineCard from '../components/admin/PipelineCard';
 import IntegrationStatus from '../components/admin/IntegrationStatus';
 import './AdminDashboard.css';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { submissionApi } from '../services/api';
+import { submissionApi } from '../services/submission-api';
 import './Landing.css';
 
 function Landing({ onSubmissionComplete }) {
