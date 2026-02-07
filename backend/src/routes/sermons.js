@@ -87,6 +87,33 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// POST /api/sermons/:id/progress - Webhook for n8n to report file completion
+router.post('/:id/progress', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { fileType, filePath, status, error } = req.body;
+
+    console.log(`Progress update for sermon ${id}: ${fileType} - ${status}`);
+
+    if (!fileType) {
+      return res.status(400).json({ error: 'fileType is required' });
+    }
+
+    if (status === 'complete' && filePath) {
+      await sermonService.updateFileStatus(id, fileType, filePath);
+    } else if (status === 'failed') {
+      await sermonService.updateSermonStatus(id, 'failed', {
+        error: error || `Failed to generate ${fileType}`
+      });
+    }
+
+    res.json({ message: 'Progress updated successfully' });
+  } catch (error) {
+    console.error('Error updating progress:', error);
+    next(error);
+  }
+});
+
 // GET /api/sermons/:id/files/:type - Download specific file
 router.get('/:id/files/:type', async (req, res, next) => {
   try {
