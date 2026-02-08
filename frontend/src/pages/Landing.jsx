@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { submissionApi } from '../services/submission-api';
 import './Landing.css';
 
@@ -11,6 +11,49 @@ function Landing({ onSubmissionComplete }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [recentSermons, setRecentSermons] = useState([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
+
+  // Load recent completed sermons
+  useEffect(() => {
+    loadRecentSermons();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadRecentSermons, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadRecentSermons = async () => {
+    try {
+      setLoadingRecent(true);
+      const response = await fetch('https://api.sermonchronicler.com/api/submissions/active');
+      const submissions = await response.json();
+      
+      // Get only completed submissions, sorted by most recent
+      const completed = submissions
+        .filter(s => s.status === 'complete')
+        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+        .slice(0, 6); // Show only 6 most recent
+      
+      setRecentSermons(completed);
+    } catch (err) {
+      console.error('Error loading recent sermons:', err);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getDownloadUrl = (submissionId, fileType) => {
+    return `https://api.sermonchronicler.com/outputs/${submissionId}/${fileType}.txt`;
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -67,6 +110,11 @@ function Landing({ onSubmissionComplete }) {
 
       // Reset form
       setFormData({ url: '', email: '' });
+
+      // Reload recent sermons to show the new submission
+      setTimeout(() => {
+        loadRecentSermons();
+      }, 1000);
 
       // Navigate to appropriate view after short delay
       setTimeout(() => {
@@ -235,19 +283,114 @@ function Landing({ onSubmissionComplete }) {
 
         <div className="recent-sermons">
           <h3>Recently Processed Sermons</h3>
-          <div className="sermon-preview-grid">
-            {/* This would be populated from API in real implementation */}
-            <div className="sermon-preview-card">
-              <div className="preview-thumbnail">
-                <div className="thumbnail-placeholder">🎬</div>
-              </div>
-              <div className="preview-info">
-                <h4>Sample Sermon Title</h4>
-                <p className="preview-date">January 15, 2024</p>
-                <p className="preview-speaker">Pastor John Doe</p>
-              </div>
+          {loadingRecent ? (
+            <div className="loading-container">
+              <div className="loading"></div>
+              <p>Loading recent sermons...</p>
             </div>
-          </div>
+          ) : recentSermons.length === 0 ? (
+            <div className="empty-state">
+              <p>No completed sermons yet. Be the first to submit one!</p>
+            </div>
+          ) : (
+            <div className="sermon-preview-grid">
+              {recentSermons.map((sermon) => (
+                <div key={sermon.id} className="sermon-preview-card">
+                  <div className="preview-thumbnail">
+                    {sermon.metadata?.thumbnail ? (
+                      <img src={sermon.metadata.thumbnail} alt={sermon.metadata.title} />
+                    ) : (
+                      <div className="thumbnail-placeholder">🎬</div>
+                    )}
+                    <div className="completion-badge">
+                      <span className="badge-icon">✓</span>
+                      <span className="badge-text">Complete</span>
+                    </div>
+                  </div>
+                  <div className="preview-info">
+                    <h4>{sermon.metadata?.title || 'Untitled Sermon'}</h4>
+                    <p className="preview-date">{formatDate(sermon.completedAt)}</p>
+                    {sermon.metadata?.channelTitle && (
+                      <p className="preview-speaker">{sermon.metadata.channelTitle}</p>
+                    )}
+                    
+                    {/* Progress indicators */}
+                    <div className="files-ready">
+                      {sermon.filesReady.cleanTranscript && <span className="file-dot ready" title="Clean Transcript">●</span>}
+                      {sermon.filesReady.notes && <span className="file-dot ready" title="Sermon Notes">●</span>}
+                      {sermon.filesReady.keywordStudy && <span className="file-dot ready" title="Keyword Study">●</span>}
+                      {sermon.filesReady.leadersGuide && <span className="file-dot ready" title="Leaders Guide">●</span>}
+                      {sermon.filesReady.membersHandout && <span className="file-dot ready" title="Members Handout">●</span>}
+                    </div>
+
+                    {/* Download buttons */}
+                    <div className="preview-actions">
+                      <div className="download-dropdown">
+                        <button className="btn-download">
+                          📥 Download Materials
+                        </button>
+                        <div className="download-menu">
+                          {sermon.filesReady.cleanTranscript && (
+                            <a 
+                              href={getDownloadUrl(sermon.id, 'clean-transcript')}
+                              download
+                              className="download-link"
+                            >
+                              📄 Clean Transcript
+                            </a>
+                          )}
+                          {sermon.filesReady.notes && (
+                            <a 
+                              href={getDownloadUrl(sermon.id, 'notes')}
+                              download
+                              className="download-link"
+                            >
+                              📝 Sermon Notes
+                            </a>
+                          )}
+                          {sermon.filesReady.keywordStudy && (
+                            <a 
+                              href={getDownloadUrl(sermon.id, 'keyword-study')}
+                              download
+                              className="download-link"
+                            >
+                              🔍 Keyword Study
+                            </a>
+                          )}
+                          {sermon.filesReady.leadersGuide && (
+                            <a 
+                              href={getDownloadUrl(sermon.id, 'leaders-guide')}
+                              download
+                              className="download-link"
+                            >
+                              👥 Leaders Guide
+                            </a>
+                          )}
+                          {sermon.filesReady.membersHandout && (
+                            <a 
+                              href={getDownloadUrl(sermon.id, 'members-handout')}
+                              download
+                              className="download-link"
+                            >
+                              📋 Members Handout
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <a 
+                        href={sermon.youtubeUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn-watch"
+                      >
+                        ▶️ Watch
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
