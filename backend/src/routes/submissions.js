@@ -334,6 +334,55 @@ router.post('/:id/retry', async (req, res, next) => {
   }
 });
 
+// POST /api/submissions/:id/progress - Webhook for n8n to report file completion
+router.post('/:id/progress', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { fileType, filePath, status, error, driveFileId, driveFolderId } = req.body;
+
+    console.log(`Progress update for submission ${id}: ${fileType} - ${status}`);
+    if (driveFileId) {
+      console.log(`Drive File ID: ${driveFileId}, Folder ID: ${driveFolderId}`);
+    }
+
+    if (!fileType) {
+      return res.status(400).json({ error: 'fileType is required' });
+    }
+
+    const submissions = await readSubmissions();
+    const index = submissions.findIndex(s => s.id === id);
+    
+    if (index === -1) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const submission = submissions[index];
+
+    if (status === 'complete') {
+      submission.filesReady[fileType] = true;
+      submission.status = 'processing';
+
+      // Check if all files are complete
+      const allComplete = Object.values(submission.filesReady).every(ready => ready);
+      if (allComplete) {
+        submission.status = 'complete';
+        submission.completedAt = new Date().toISOString();
+      }
+    } else if (status === 'failed') {
+      submission.status = 'failed';
+      submission.error = error || `Failed to generate ${fileType}`;
+    }
+
+    submissions[index] = submission;
+    await writeSubmissions(submissions);
+
+    res.json({ message: 'Progress updated successfully', submission });
+  } catch (error) {
+    console.error('Error updating progress:', error);
+    next(error);
+  }
+});
+
 // PUT /api/submissions/:id/status - Update submission status (internal use)
 router.put('/:id/status', async (req, res, next) => {
   try {
