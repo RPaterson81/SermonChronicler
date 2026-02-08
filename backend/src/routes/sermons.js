@@ -91,16 +91,19 @@ router.get('/:id', async (req, res, next) => {
 router.post('/:id/progress', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { fileType, filePath, status, error } = req.body;
+    const { fileType, filePath, status, error, driveFileId, driveFolderId } = req.body;
 
     console.log(`Progress update for sermon ${id}: ${fileType} - ${status}`);
+    if (driveFileId) {
+      console.log(`Drive File ID: ${driveFileId}, Folder ID: ${driveFolderId}`);
+    }
 
     if (!fileType) {
       return res.status(400).json({ error: 'fileType is required' });
     }
 
-    if (status === 'complete' && filePath) {
-      await sermonService.updateFileStatus(id, fileType, filePath);
+    if (status === 'complete' && (filePath || driveFileId)) {
+      await sermonService.updateFileStatus(id, fileType, filePath, driveFileId, driveFolderId);
     } else if (status === 'failed') {
       await sermonService.updateSermonStatus(id, 'failed', {
         error: error || `Failed to generate ${fileType}`
