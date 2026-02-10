@@ -4,6 +4,27 @@ version: '3.8'
 # Transform sermon transcripts into engaging study materials
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sermonchronicler-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/config/database.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - sermonchronicler
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+      
   backend:
     image: ghcr.io/rpaterson81/sermonchronicler/backend:latest
     container_name: sermonchronicler-backend
@@ -13,8 +34,25 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/sermonchronicler
-      - ALLOWED_ORIGINS=http://${SERVER_IP}:${FRONTEND_PORT:-3000},http://localhost:${FRONTEND_PORT:-3000}
+      - N8N_WEBHOOK_URL=https://n8n.datacitadel.net/webhook/6f3f95a1-4b76-4b71-9793-399379f0e9d7
+      - ALLOWED_ORIGINS=http://${SERVER_IP}:${FRONTEND_PORT:-3002},http://localhost:${FRONTEND_PORT:-3002}
+      # Database configuration
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      # JWT configuration
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1h}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+      - BASE_URL=http://${SERVER_IP}:${FRONTEND_PORT:-3002}
     volumes:
       - backend_data:/app/data
       - backend_uploads:/app/uploads
@@ -25,20 +63,19 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5              # Increased from 3
+      start_period: 40s       # Increased from 40s
 
   frontend:
     image: ghcr.io/rpaterson81/sermonchronicler/frontend:latest
     container_name: sermonchronicler-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-3002}:80"
     environment:
       - API_URL=http://${SERVER_IP}:${BACKEND_PORT:-3001}/api
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     networks:
       - sermonchronicler
     healthcheck:
@@ -46,24 +83,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: sermonchronicler-n8n
-    restart: unless-stopped
-    ports:
-      - "${N8N_PORT:-5678}:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
-      - WEBHOOK_URL=http://n8n:5678/
-      - N8N_METRICS=false
-      - N8N_DIAGNOSTICS_ENABLED=false
-    volumes:
-      - n8n_data:/home/node/.n8n
-    networks:
-      - sermonchronicler
 
 networks:
   sermonchronicler:
@@ -77,12 +96,6 @@ volumes:
     name: sermonchronicler-uploads
   backend_outputs:
     name: sermonchronicler-outputs
-  n8n_data:
-    name: sermonchronicler-n8n
+  postgres_data:
+    name: sermonchronicler-postgres
 
-# Quick Commands:
-# Start:   docker-compose up -d
-# Stop:    docker-compose down
-# Logs:    docker-compose logs -f
-# Update:  docker-compose pull && docker-compose up -d
-# Restart: docker-compose restart
