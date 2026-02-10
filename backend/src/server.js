@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const db = require('./config/database');
 const authRoutes = require('./routes/auth');
-const sermonRoutes = require('./routes/sermons-v3');
+const sermonRoutes = require('./routes/sermons');
 const submissionRoutes = require('./routes/submissions');
 const auth = require('./middleware/auth');
 
